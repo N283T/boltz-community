@@ -109,6 +109,35 @@ class BoltzWriter(BasePredictionWriter):
         # Get the records
         records: list[Record] = batch["record"]
 
+        # Embeddings-only mode: no structure was sampled. Dump s/z and exit.
+        if "coords" not in prediction:
+            if (
+                not self.write_embeddings
+                or "s" not in prediction
+                or "z" not in prediction
+            ):
+                return
+            batch_size = len(records)
+            for key in ("s", "z"):
+                if prediction[key].shape[0] != batch_size:
+                    msg = (
+                        f"Prediction field {key} has batch dim "
+                        f"{prediction[key].shape[0]}, expected {batch_size}."
+                    )
+                    raise ValueError(msg)
+            for record_idx, record in enumerate(records):
+                struct_dir = self.output_dir / record.id
+                struct_dir.mkdir(exist_ok=True)
+                if batch_size == 1:
+                    s = prediction["s"].cpu().numpy()
+                    z = prediction["z"].cpu().numpy()
+                else:
+                    s = prediction["s"][record_idx].cpu().numpy()
+                    z = prediction["z"][record_idx].cpu().numpy()
+                path = struct_dir / f"embeddings_{record.id}.npz"
+                np.savez_compressed(path, s=s, z=z)
+            return
+
         # Structure predictions are flattened as [batch_size * diffusion_samples, ...]
         # in record-major order.
         coords = prediction["coords"]

@@ -263,6 +263,48 @@ def test_boltz_writer_preserves_single_record_embedding_shape(tmp_path: Path):
     assert embeddings["z"].shape == (1, 1, 2, 2)
 
 
+def test_boltz_writer_embeddings_only_splits_batched_records(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    out_dir = tmp_path / "out"
+    data_dir.mkdir()
+    out_dir.mkdir()
+
+    writer = BoltzWriter(
+        data_dir=str(data_dir),
+        output_dir=str(out_dir),
+        output_format="mmcif",
+        boltz2=True,
+        write_embeddings=True,
+    )
+
+    prediction = {
+        "exception": False,
+        "masks": torch.ones(2, 1, dtype=torch.bool),
+        "s": torch.arange(12, dtype=torch.float32).reshape(2, 2, 3),
+        "z": torch.arange(16, dtype=torch.float32).reshape(2, 1, 2, 4),
+    }
+    batch = {
+        "record": [_make_record("record_a"), _make_record("record_b")],
+    }
+
+    writer.write_on_batch_end(
+        trainer=None,
+        pl_module=None,
+        prediction=prediction,
+        batch_indices=[],
+        batch=batch,
+        batch_idx=0,
+        dataloader_idx=0,
+    )
+
+    emb_a = np.load(out_dir / "record_a" / "embeddings_record_a.npz")
+    emb_b = np.load(out_dir / "record_b" / "embeddings_record_b.npz")
+    np.testing.assert_array_equal(emb_a["s"], prediction["s"][0].numpy())
+    np.testing.assert_array_equal(emb_b["s"], prediction["s"][1].numpy())
+    np.testing.assert_array_equal(emb_a["z"], prediction["z"][0].numpy())
+    np.testing.assert_array_equal(emb_b["z"], prediction["z"][1].numpy())
+
+
 def test_affinity_writer_uses_per_copy_output_name(tmp_path: Path):
     writer = BoltzAffinityWriter(
         data_dir=str(tmp_path / "data"),

@@ -75,6 +75,40 @@ class TestBatchSizeOption:
             )
 
 
+class TestEmbeddingsOptions:
+    """Embedding extraction and resume options are Boltz-2-only."""
+
+    def test_rejects_embeddings_only_non_boltz2(self, tmp_path):
+        input_path = tmp_path / "input.yaml"
+        input_path.write_text("version: 1\nsequences: []\n")
+        with pytest.raises(
+            click.ClickException,
+            match="--embeddings_only is only supported for Boltz-2.",
+        ):
+            predict.main(
+                args=[str(input_path), "--embeddings_only", "--model", "boltz1"],
+                prog_name="predict",
+                standalone_mode=False,
+            )
+
+    def test_resume_embeddings_requires_resume_recycling_steps(self, tmp_path):
+        input_path = tmp_path / "input.yaml"
+        input_path.write_text("version: 1\nsequences: []\n")
+        with pytest.raises(
+            click.ClickException,
+            match="--resume_recycling_steps is required",
+        ):
+            predict.main(
+                args=[
+                    str(input_path),
+                    "--resume_embeddings_dir",
+                    str(tmp_path / "embeddings"),
+                ],
+                prog_name="predict",
+                standalone_mode=False,
+            )
+
+
 class TestAvailableCpuCount:
     """_available_cpu_count must respect cgroup/taskset limits."""
 
