@@ -471,9 +471,11 @@ def filter_inputs_structure(
         for r in manifest.records:
             if r.id not in existing:
                 keep.append(r)
-            elif r.affinity and not (
-                pred_dir / r.id / f"pre_affinity_{r.id}.npz"
-            ).exists():
+            elif (
+                not embeddings_only
+                and r.affinity
+                and not (pred_dir / r.id / f"pre_affinity_{r.id}.npz").exists()
+            ):
                 # Prior run created the directory but failed to write
                 # the pre_affinity file needed for the affinity pass
                 keep.append(r)
